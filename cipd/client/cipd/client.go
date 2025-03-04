@@ -1960,6 +1960,7 @@ func (c *clientImpl) remoteFetchInstance(ctx context.Context, pin common.Pin, ou
 		return c.rpcErr(err, nil)
 	}
 
+	logging.Infof(ctx, "Resolving download from URL %s", resp.SignedUrl)
 	hash := common.MustNewHash(objRef.HashAlgo)
 	if err = c.storage.download(ctx, resp.SignedUrl, output, hash); err != nil {
 		return

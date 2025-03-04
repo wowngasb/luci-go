@@ -2909,6 +2909,8 @@ func fetchInstanceFile(ctx context.Context, packageName, version, instanceFile s
 		return common.Pin{}, err
 	}
 
+	logging.Infof(ctx, "FetchInstance %s to %s", pin.InstanceID, instanceFile)
+
 	out, err := os.OpenFile(instanceFile, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return common.Pin{}, errors.Annotate(err, "opening the instance file for writing").Tag(cipderr.IO).Err()

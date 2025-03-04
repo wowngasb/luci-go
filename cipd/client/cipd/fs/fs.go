@@ -348,6 +348,55 @@ func (f *fsImpl) EnsureDirectory(ctx context.Context, path string) (string, erro
 	return path, nil
 }
 
+func CopyFile(sourceFile, destinationFile string) error {
+	input, err := os.ReadFile(sourceFile)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(destinationFile, input, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func IsDir(path string) bool {
+	s, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return s.IsDir()
+}
+
+func IsFile(path string) bool {
+	s, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return !s.IsDir()
+}
+
+func UseTmpCache(path string) bool {
+	seq := string(os.PathSeparator)
+	arr := strings.Split(path, seq)
+	file := arr[len(arr)-1]
+	return len(file) > 10 && !strings.Contains(file, ".")
+}
+
+func TmpCachePath(path string) (string, string) {
+	seq := string(os.PathSeparator)
+	arr := strings.Split(path, seq)
+	cache := arr[0]
+	for _, s := range arr[1:] {
+		cache += seq + s
+		if s == ".cipd" {
+			cache += seq + ".tmp"
+			break
+		}
+	}
+	return cache, cache + seq + arr[len(arr)-1]
+}
+
 func (f *fsImpl) EnsureFile(ctx context.Context, path string, write func(*os.File) error) error {
 	path, err := f.CwdRelToAbs(path)
 	if err != nil {
@@ -355,6 +404,15 @@ func (f *fsImpl) EnsureFile(ctx context.Context, path string, write func(*os.Fil
 	}
 	if _, err := f.EnsureDirectory(ctx, filepath.Dir(path)); err != nil {
 		return err
+	}
+
+	tdir, tcache := TmpCachePath(path)
+	if UseTmpCache(path) && IsDir(tdir) && IsFile(tcache) {
+		if err := CopyFile(tcache, path); err != nil {
+			return err
+		}
+		logging.Infof(ctx, "UseCache .tmp %s to %s", tcache, path)
+		return nil
 	}
 
 	temp := tempFileName(path)
@@ -372,6 +430,12 @@ func (f *fsImpl) EnsureFile(ctx context.Context, path string, write func(*os.Fil
 	// Create a temp file with new content.
 	if err := createFile(temp, write); err != nil {
 		return err
+	}
+
+	if UseTmpCache(path) && IsDir(tdir) && !IsFile(tcache) {
+		if err := CopyFile(temp, tcache); err != nil {
+			return err
+		}
 	}
 
 	// Replace the current file (if there's one) with a new one. Use nuclear
