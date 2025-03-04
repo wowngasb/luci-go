@@ -45,12 +45,12 @@ var AllFields = mask.All(&pb.TestResult{})
 var limitedFields = mask.MustFromReadMask(&pb.TestResult{},
 	"name",
 	"test_id",
-	"test_variant_identifier.module_name",
-	"test_variant_identifier.module_scheme",
-	"test_variant_identifier.module_variant_hash",
-	"test_variant_identifier.coarse_name",
-	"test_variant_identifier.fine_name",
-	"test_variant_identifier.case_name",
+	"test_variant_id.module_name",
+	"test_variant_id.module_scheme",
+	"test_variant_id.module_variant_hash",
+	"test_variant_id.coarse_name",
+	"test_variant_id.fine_name",
+	"test_variant_id.case_name",
 	"result_id",
 	"expected",
 	"status",
@@ -72,7 +72,7 @@ var defaultListMask = mask.MustFromReadMask(&pb.TestResult{},
 	"name",
 	"test_id",
 	"result_id",
-	"test_variant_identifier",
+	"test_variant_id",
 	"variant",
 	"variant_hash",
 	"expected",
@@ -240,13 +240,12 @@ func (q *Query) selectClause() (columns []string, parser func(*spanner.Row) (*pb
 		// Generate test result name now in case tr.TestId and tr.ResultId become
 		// empty after q.Mask.Trim(tr).
 		trName := pbutil.TestResultName(string(invID), tr.TestId, tr.ResultId)
-		tvID, err := pbutil.ParseTestVariantIdentifier(tr.TestId, tr.Variant)
+		tvID, err := pbutil.ParseTestVariantIdentifierForOutput(tr.TestId, tr.Variant)
 		if err != nil {
 			return nil, errors.Annotate(err, "populate test variant identifier for %s", trName).Err()
 		}
-		pbutil.PopulateTestVariantIdentifierHashes(tvID)
 
-		tr.TestVariantIdentifier = tvID
+		tr.TestVariantId = tvID
 		tr.SummaryHtml = string(summaryHTML)
 		PopulateExpectedField(tr, maybeUnexpected)
 		PopulateDurationField(tr, micros)
